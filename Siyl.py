@@ -3,7 +3,7 @@
 # Basic sqli DeCruncher
 
 import sys,urllib,re,getopt
-VER = '0.0a'
+VER = '0.0b'
 
 # Help 
 def help():
@@ -19,6 +19,7 @@ def help():
 	print ' -j : Disable \'||\' joining'
 	print ' -c : Disable chr(xx) decoding'
 	print ' -u : Disable URL decoding'
+	print ' -n : Disable URL encoding of cr lf'
 
 # Main program loop
 def main(argv):
@@ -32,9 +33,11 @@ def main(argv):
 	_ochar = 1
 	global _ourld
 	_ourld = 1
+	global _okeepcr
+	_okeepcr = 1
 
 	try:
-		opts, args = getopt.getopt(argv,"hpjcui:",["ifile="])
+		opts, args = getopt.getopt(argv,"hnpjcui:",["ifile="])
 	except getopt.GetoptError:
 		help()
 		sys.exit(2)
@@ -51,9 +54,11 @@ def main(argv):
 			_ochar = 0
 		if opt in '-u':
 			_ourld = 0
+		if opt in '-n':
+			_okeepcr = 0
 		# Pipemode requested
 		if opt in '-p':
-			_pipemode = 1	
+			_pipemode = 1
 		# file requested
 		elif opt in ("-i", "--ifile"):
 			_filemode = 1
@@ -79,11 +84,19 @@ def main(argv):
 
 		# Sinon....
 
+		# Cleanup end crlf
+		line = line.rstrip('\n')
+		line = line.rstrip('\r')
+
 		# Url Decode
 		if _ourld:
 			line = urllib.unquote(line).decode('utf-8')
+			# Keep 0A and 0D Encoded
+			if _okeepcr:
+				line = line.replace(b"\n", "%0D")
+				line = line.replace(b"\r", "%0A")
 
-		# Charcode
+		# Convert Charcode to ASCII
 		if _ochar:
 			line2 = "" 
 			pattern = re.compile(r"(CHR\([0-9]{1,3}\))")
@@ -97,11 +110,11 @@ def main(argv):
 					line2 = line2+fields
 			line = line2
 	
-		# Join
+		# Remove Join for lisibility
 		if _ojoin:
 			line = line.replace('||','')
 
-		print line.rstrip('\n')
+		print line
 
 
 if __name__ == "__main__":

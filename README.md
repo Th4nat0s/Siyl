@@ -15,4 +15,8 @@ Switches:
  -j : Disable '||' joining
  -c : Disable chr(xx) decoding
  -u : Disable URL decoding
+ -n : Disable URL Encoding of CRLF
 
+History :
+0.0b Keep CR and LF encoded
+0.0a Initial release
