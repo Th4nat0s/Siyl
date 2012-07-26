@@ -3,7 +3,7 @@
 # Basic sqli DeCruncher
 
 import sys,urllib,re,getopt
-VER = '0.0b'
+VER = '0.0c'
 
 # Help 
 def help():
@@ -21,100 +21,108 @@ def help():
 	print ' -u : Disable URL decoding'
 	print ' -n : Disable URL encoding of cr lf'
 
-# Main program loop
-def main(argv):
+# Programme initialisation
+def init(argv):
 	global _pipemode
-	_pipemode = 0
-	global _filemode
-	_filemode = 0
-	global _ojoin 
-	_ojoin = 1	
+	_pipemode = False
+	global _ojoin
+	_ojoin = True 
 	global _ochar
-	_ochar = 1
+	_ochar = True
 	global _ourld
-	_ourld = 1
+	_ourld = True
 	global _okeepcr
-	_okeepcr = 1
+	_okeepcr = True
 
 	try:
-		opts, args = getopt.getopt(argv,"hnpjcui:",["ifile="])
+		opts, args = getopt.getopt(argv,"hjcunp")
 	except getopt.GetoptError:
 		help()
 		sys.exit(2)
 
+	# Parse line option
 	for opt, arg in opts:
-		# Help requested
+        # Help requested
 		if opt == '-h':
 			help()
 			sys.exit()
-		print 'prite'
 		if opt in '-j':
-			_ojoin = 0
+			_ojoin = False
 		if opt in '-c':
-			_ochar = 0
+			_ochar = False
 		if opt in '-u':
-			_ourld = 0
+			_ourld = False
 		if opt in '-n':
-			_okeepcr = 0
+			_okeepcr = False
 		# Pipemode requested
 		if opt in '-p':
-			_pipemode = 1
-		# file requested
-		elif opt in ("-i", "--ifile"):
-			_filemode = 1
-			_inputfile = arg
-			f = open(_inputfile, 'r' )
+			_pipemode = True
 
-	# if no mode choosen halt
-	if (_pipemode + _filemode) <> 1:
-		print 'Error: No mode choosen'
-		help()
-		sys.exit()
+	# return all other parameter (filelist)	
+	return (args)
 
+def clean(line):
+	# Cleanup end crlf
+	line = line.rstrip('\n')
+	line = line.rstrip('\r')
 
-	# Main loop
-	while True:
-		if _pipemode:
+	# Url Decode
+	if _ourld:
+		line = urllib.unquote(line).decode('utf-8')
+		# Keep 0A and 0D Encoded
+		if _okeepcr:
+			line = line.replace(b"\n", "%0D")
+			line = line.replace(b"\r", "%0A")
+		
+	# Convert Charcode to ASCII
+	if _ochar:
+		line2 = ""
+		pattern = re.compile(r"(CHR\([0-9]{1,3}\))")
+		patterchr = re.compile(r"CHR\(([0-9]{1,3})\)")
+		for fields in pattern.split(line):
+			if 'CHR(' in fields:   # String a convertir
+				for fchar in patterchr.split(fields):
+					if fchar <> '':
+						line2 = line2+chr(int(fchar))
+			else:
+				line2 = line2+fields
+		line = line2
+
+	# Remove Join for lisibility
+	if _ojoin:
+		line = line.replace('||','')
+
+	return(line)
+
+# Main program loop
+def main(argv):
+
+	filelist = init(argv)
+
+	print _ojoin
+	print _pipemode
+	if _pipemode == True:
+		print 'proute'
+		while True:
+			print 'proute'
 			line = sys.stdin.readline()
-		else:
-			line = f.readline()
-		#Si fin d'input arret
-		if not line:
-			break
+			if not line:
+				break
+			print clean(line)
+	else:
+		for file in filelist:			
+			# Default mode is file
+			# test if file exists
+			f = open(file, 'r' )
+			# Main loop
+			while True:
+				line = f.readline()
+				#Si fin d'input arret
+				if not line:
+					break
 
-		# Sinon....
-
-		# Cleanup end crlf
-		line = line.rstrip('\n')
-		line = line.rstrip('\r')
-
-		# Url Decode
-		if _ourld:
-			line = urllib.unquote(line).decode('utf-8')
-			# Keep 0A and 0D Encoded
-			if _okeepcr:
-				line = line.replace(b"\n", "%0D")
-				line = line.replace(b"\r", "%0A")
-
-		# Convert Charcode to ASCII
-		if _ochar:
-			line2 = "" 
-			pattern = re.compile(r"(CHR\([0-9]{1,3}\))")
-			patterchr = re.compile(r"CHR\(([0-9]{1,30})\)")
-			for fields in pattern.split(line):
-				if 'CHR(' in fields:   # String a convertir
-					for fchar in patterchr.split(fields):
-						if fchar <> '':
-							line2 = line2+chr(int(fchar))
-				else:
-					line2 = line2+fields
-			line = line2
-	
-		# Remove Join for lisibility
-		if _ojoin:
-			line = line.replace('||','')
-
-		print line
+				# Sinon....
+				print clean(line)
 
 
 if __name__ == "__main__":
